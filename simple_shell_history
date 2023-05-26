@@ -1,0 +1,223 @@
+#ifndef MINISHELL_H
+# define MINISHELL_H
+
+# include <fcntl.h>
+# include <stdlib.h>
+# include <stdio.h>
+# include <signal.h>
+# include <unistd.h>
+# include <stdlib.h>
+# include <readline/readline.h>
+# include <readline/history.h>
+# include <errno.h>
+# include <dirent.h>
+
+# define _PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin:"
+
+# define S_QUOTE		'\''
+# define D_QUOTE		'"'
+# define SYMBOLS		" \t\n!\"%'[\\]^`|~()*+,-./:;<=>?@$"
+# define TO_IGNORE		" \"%'()./:\\^`|~$+,-"
+# define TO_STOP		" \"'\v\f|<>$\t\r\n"
+# define ISSPACE 		" \t\r\n\v\f"
+# define PATH_MAX		1024
+# define ERROR_CODE		-42
+# define EXIT_ERROR		2
+# define EXIT_FAILURE	1
+# define EXIT_SUCCESS	0
+
+// TOKEN
+# define WORD 1
+# define EXIT_STATUS 2
+# define PIPE_LINE 3
+# define REDIR_IN 4 // <
+# define APPEND 5 // >>
+# define REDIR_OUT 6 // >
+# define HEREDOC 7
+# define SIGN 8
+# define WSPACE 9
+# define D_PIPE 10
+
+// BUILTIN MACROS
+# define BUILTIN_ECHO 1
+# define BUILTIN_PWD 2
+# define BUILTIN_ENV 3
+# define BUILTIN_UNSET 4
+# define BUILTIN_EXPORT 5
+# define BUILTIN_EXIT 6
+# define BUILTIN_CD 7
+
+// Syntax error messages
+
+# define SYN_FORK_ERR "minishell: fork: Resource temporarily \
+unavailable\n" 
+# define SYN_F_ERR "No such file or directory " 
+# define SYN_ERR "Minishell: syntax error, \
+near unexpected token `"
+# define SYN_RED_ERR "Minishell: syntax error \
+near unexpected token"
+# define SYN_QUOTES_ERR "Minishell: unclosed quotes\n"
+
+typedef struct s_env
+{
+	char			*variable;
+	char			*value;
+	struct s_env	*next;
+
+}	t_env;
+
+typedef struct s_p_collect
+{
+	void				*pointer;
+	struct s_p_collect	*next;
+}	t_p_collect;
+
+typedef struct s_global_vars
+{
+	t_env		*g_env;
+	t_p_collect	*rubbish;
+	int			status_sign;
+	int			_shlvl;
+	int			r_in;
+	int			w_out;
+	int			dup_in;
+	int			dup_out;
+	int			fd[2];
+	int			s_fd;
+}	t_global_vars;
+
+extern t_global_vars	g_vars;
+
+typedef struct s_red
+{
+	int				type;
+	char			*filename;
+	struct s_red	*next;
+}	t_red;
+
+// linked list commonds
+typedef struct s_node
+{
+	int				type;
+	char			*value;
+	struct s_node	*next;
+}	t_node;
+
+typedef struct s_cmd
+{
+	char			**cmnd;
+	char			*str;
+	struct s_red	*red;
+	struct s_cmd	*next;
+}	t_cmd;
+
+char	**ft_split(char const *s, char c);
+void	signal_handler(int sig);
+
+t_env	*new_env(char *var, char *value);
+t_node	*new_node(int type, char *value);
+void	free_rubbish(t_p_collect *rubbish);
+void	heredoc2(t_node *save);
+
+void	build_env(char **data);
+void	shell_lvl(char **env);
+void	add_to_r(void *p, t_p_collect **rubbish);
+void	add_to_env(t_env **list, char *var, char *value);
+void	add_to_list(t_node **list, int type, char *val);
+void	ft_lstclear(t_node **lst);
+void	free_cmd(t_cmd **cmd);
+
+void	ft_bzero(void *s, size_t n);
+int		ft_strcmp(char	*s1, char *s2);
+void	*ft_calloc(size_t count, size_t size);
+int		ft_atoi(const char *str);
+int		ft_str_isnum(char *str);
+void	ft_putchar_fd(char c, int fd);
+void	ft_putstr_fd(char *str, int fd);
+char	**ft_split(char const *s, char c);
+void	*ft_memset(void *b, int c, size_t len);
+size_t	ft_strlcpy(char *dst, const char *src, size_t size);
+size_t	ft_strlen(const char *s);
+void	*ft_memmove(void *dst, const void *src, size_t len);
+char	*ft_strjoin(char const *s1, char const *s2);
+char	*ft_strnstr(const char *haystack, const char *needle, size_t len);
+char	*ft_itoa(int n);
+int		ft_isspace(char *line);
+char	*ft_strdup(const char *s1);
+int		ft_strncmp(const char *s1, const char *s2, unsigned int n);
+char	*ft_strtrim(char const *s1, char const *set);
+char	*ft_substr(char const *s, unsigned int start, size_t len);
+char	*ft_strchr(const char *s, int c);
+char	*ft_strstr(char *str, char *to_find);
+char	*join_err(char *arg1, char *arg2, char *arg3);
+int		word_counter(char **args);
+int		folder_check(char *path);
+void	norm_cd(char *path, char *cmd);
+void	update_env(char *old_path);
+int		ft_isdigit(int c);
+void	singals(int *w_status);
+
+void	init(t_node **save, t_cmd **cmd, char *r_line, char **env);
+void	shell(t_node **save, t_cmd **cmd, char *r_line);
+// Lexer check functions
+int		lexer(t_node **list, char *line);
+char	*check_isspace(t_node **list, char *r_line);
+char	*is_pipe(t_node **list, char *r_line);
+char	*is_red(t_node **list, char *r_line);
+char	*is_word(t_node **list, char *r_line, char *sym);
+char	*is_sign(t_node **list, char *r_line);
+char	*is_word_sym(t_node **list, char *r_line);
+char	*is_s_quotes(t_node **list, char *r_line);
+char	*is_d_quotues(t_node **list, char *r_line);
+void	is_heredoc(t_node **list, int ret);
+
+int		expander(t_node **list);
+t_cmd	*parse(t_node *list);
+
+int		after_sign(t_node **list, char r_line);
+void	add_to_list_red(t_red **list, int type, char *val);
+t_cmd	*newcmd(char **var, t_red *red);
+void	add_tocmd(t_cmd **list, char **var, t_red *red);
+void	more_cmd(t_cmd *cmnd, int w_status, int status);
+
+int		syntax_check(t_node *to_check);
+int		pipe_counter(t_node *list);
+int		red_counter(t_red *red);
+int		check_red(t_red *red, int *status);
+int		open_heredoc_f(char *filemane, int *status);
+void	open_redirout(char *filename, int *status);
+int		open_redirin(char *filename, int *status);
+void	open_append(char *filename);
+void	check_status_cmd(char *line);
+int		system_cmd(t_cmd *cmd, int status, int w_status);
+int		bin_cmd(char **cmd, char *path);
+char	*bin_path(void);
+
+//builtins
+int		is_builtin(char *word);
+void	builtin(char **cmd, int *status);
+t_env	*unset(char **cmd);
+void	pwd(void);
+void	ft_export(char **args);
+int		exit_sh(char **args, int i);
+int		exit_error(char *input);
+void	ft_env(char **args);
+int		echo(char **args);
+void	cd(char **args);
+void	ft_export(char **args);
+// for export
+void	ft_setandfree(char *variable, char *value);
+void	ft_printnotvalid(char *str);
+void	print_env4export(void);
+char	**sortenv(t_env *lst);
+char	**ft_sort_tab(char **tab);
+int		ft_sizeofenv(t_env *lst);
+int		is_valid(char *str);
+void	set_env(char *str, char *value);
+
+void	executor(t_cmd *cmd, t_node *list);
+void	status_reset(int stautus);
+
+char	**convertor_ll2arr(t_env **env);
+
+#endif 
